@@ -13,7 +13,7 @@ const connConfig = {
 
 router.get('/monthly', async (req, res) => {
   const connection = mysql.createConnection(connConfig);
-  const mode = req.query.mode??0;
+  const mode = req.query.mode!==undefined?req.query.mode:0;
 
   connection.on('error', (err) => {
     res.json({
@@ -40,7 +40,7 @@ router.get('/monthly', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   const connection = mysql.createConnection(connConfig);
-  const mode = req.query.mode??0;
+  const mode = req.query.mode!==undefined?req.query.mode:0;
 
   connection.on('error', (err) => {
     res.json({
