@@ -13,7 +13,7 @@ const connConfig = {
 
 router.get('/monthly', async (req, res) => {
   const connection = mysql.createConnection(connConfig);
-  const mode = req.query.mode!==undefined?req.query.mode:0;
+  const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
   connection.on('error', (err) => {
     res.json({
@@ -40,7 +40,7 @@ router.get('/monthly', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   const connection = mysql.createConnection(connConfig);
-  const mode = req.query.mode!==undefined?req.query.mode:0;
+  const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
   connection.on('error', (err) => {
     res.json({
@@ -52,6 +52,23 @@ router.get('/:id', async (req, res) => {
   const result = await connection.awaitQuery('SELECT * FROM beatmap WHERE beatmap_id=? AND mode=?', [req.params.id, mode]);
 
   res.json(result);
+  connection.end();
+});
+
+router.get('/:id/maxscore', async (req, res) => {
+  const connection = mysql.createConnection(connConfig);
+  const mode = req.query.mode !== undefined ? req.query.mode : 0;
+
+  connection.on('error', (err) => {
+    res.json({
+      message: 'Unable to connect to database',
+      error: err,
+    });
+  });
+
+  const result = await connection.awaitQuery('SELECT max_score FROM beatmap WHERE beatmap_id=? AND mode=?', [req.params.id, mode]);
+
+  res.json((result !== undefined && result[0] !== undefined) ? result[0].max_score : 0);
   connection.end();
 });
 
