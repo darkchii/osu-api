@@ -11,17 +11,8 @@ const connConfig = {
   password: process.env.MYSQL_PASS,
 };
 
-router.get('/count', async (req, res) => {
-  const connection = mysql.createConnection(connConfig);
+function buildQuery(req) {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
-
-  connection.on('error', (err) => {
-    res.json({
-      message: 'Unable to connect to database',
-      error: err,
-    });
-  });
-
   let q = 'WHERE mode=? AND (approved=1 OR approved=2)';
   const qVar = [mode];
 
@@ -74,9 +65,47 @@ router.get('/count', async (req, res) => {
     qVar.push(req.query.length_max);
   }
 
+  return [q, qVar];
+}
+
+router.get('/count', async (req, res) => {
+  const connection = mysql.createConnection(connConfig);
+
+  connection.on('error', (err) => {
+    res.json({
+      message: 'Unable to connect to database',
+      error: err,
+    });
+  });
+
+  const _res = buildQuery(req);
+  const q = _res[0];
+  const qVar = _res[1];
+
   const result = await connection.awaitQuery(`SELECT COUNT(*) as amount FROM beatmap ${q}`, qVar);
 
   res.json(result[0].amount);
+
+  await connection.end();
+});
+
+router.get('/all', async (req, res) => {
+  const connection = mysql.createConnection(connConfig);
+
+  connection.on('error', (err) => {
+    res.json({
+      message: 'Unable to connect to database',
+      error: err,
+    });
+  });
+
+  const _res = buildQuery(req);
+  const q = _res[0];
+  const qVar = _res[1];
+
+  const result = await connection.awaitQuery(`SELECT * FROM beatmap ${q}`, qVar);
+
+  res.json(result);
 
   await connection.end();
 });
