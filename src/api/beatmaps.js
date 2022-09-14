@@ -240,4 +240,25 @@ router.get('/:id/maxscore', async (req, res) => {
   connection.end();
 });
 
+router.get('/ranges/:format', async (req, res) => {
+  const connection = mysql.createConnection(connConfig);
+
+  connection.on('error', (err) => {
+    res.json({
+      message: 'Unable to connect to database',
+      error: err,
+    });
+  });
+
+  const _res = buildQuery(req);
+  const q = _res[0];
+  const qVar = _res[1];
+  const size = req.query.size !== undefined ? req.query.size : 1;
+
+  const result = await connection.awaitQuery(`select (bucket*${size}) as min, ((bucket*${size})+${size}) as max, count(${req.params.format}) as amount from (select *, floor(${req.params.format}/${size}) as bucket from beatmap ${q}) t1 group by bucket`, [qVar]);
+  res.json(result);
+
+  await connection.end();
+});
+
 module.exports = router;
