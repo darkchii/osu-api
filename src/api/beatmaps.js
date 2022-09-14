@@ -13,7 +13,7 @@ const connConfig = {
 
 function buildQuery(req) {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
-  let q = 'WHERE mode=? AND (approved=1 OR approved=2' + (req.query.include_loved ? ' OR approved=4' : '') + ')';
+  let q = `WHERE mode=? AND (approved=1 OR approved=2${(req.query.include_loved !== undefined && req.query.include_loved === 'true') ? ' OR approved=4' : ''})`;
   const qVar = [mode];
 
   if (req.query.stars_min) {
@@ -67,6 +67,48 @@ function buildQuery(req) {
 
   return [q, qVar];
 }
+
+router.get('/packs', async (req, res) => {
+  const connection = mysql.createConnection(connConfig);
+
+  connection.on('error', (err) => {
+    res.json({
+      message: 'Unable to connect to database',
+      error: err,
+    });
+  });
+
+  const _res = buildQuery(req);
+  const q = _res[0];
+  const qVar = _res[1];
+
+  const result = await connection.awaitQuery(`
+    with recursive
+      data as (select concat(packs, ',') packs from beatmap ${q}),
+      cte as (
+        select
+          substring(packs, 1, locate(',', packs) - 1) pack,
+          substring(packs, locate(',', packs) + 2) packs
+        from data
+        union all
+        select
+          substring(packs, 1, locate(',', packs) - 1) pack,
+          substring(packs, locate(',', packs) + 2) packs
+        from cte
+        where locate(',', packs) > 0
+      )
+      select DISTINCT(pack) from cte
+  `, qVar);
+
+  let packs = [];
+  for (let i = 0; i < result.length; i++) {
+    packs.push(result[i].pack);
+  }
+
+  res.json(packs);
+
+  await connection.end();
+});
 
 router.get('/count', async (req, res) => {
   const connection = mysql.createConnection(connConfig);
