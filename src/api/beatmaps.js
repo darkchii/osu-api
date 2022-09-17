@@ -64,6 +64,11 @@ function buildQuery(req) {
     q += ' AND total_length<?';
     qVar.push(req.query.length_max);
   }
+  if (req.query.pack) {
+    q += ` AND 
+      (packs LIKE '${req.query.pack},%' or packs LIKE '%,${req.query.pack},%' or packs LIKE '%,${req.query.pack}' or packs = '${req.query.pack}')
+    `;
+  }
 
   return [q, qVar];
 }
@@ -82,28 +87,33 @@ router.get('/packs', async (req, res) => {
   const q = _res[0];
   const qVar = _res[1];
 
-  const result = await connection.awaitQuery(`
-    with recursive
-      data as (select concat(packs, ',') packs from beatmap ${q}),
-      cte as (
-        select
-          substring(packs, 1, locate(',', packs) - 1) pack,
-          substring(packs, locate(',', packs) + 2) packs
-        from data
-        union all
-        select
-          substring(packs, 1, locate(',', packs) - 1) pack,
-          substring(packs, locate(',', packs) + 2) packs
-        from cte
-        where locate(',', packs) > 0
-      )
-      select DISTINCT(pack) from cte
+  let result;
+  if (req.query.sets_only !== undefined && req.query.sets_only === 'true') {
+    result = await connection.awaitQuery(`
+    SELECT packs FROM beatmap ${q} GROUP BY beatmapset_id
   `, qVar);
+  } else {
+    result = await connection.awaitQuery(`
+      SELECT packs FROM beatmap ${q}
+    `, qVar);
+  }
+
 
   let packs = [];
-  for (let i = 0; i < result.length; i++) {
-    packs.push(result[i].pack);
-  }
+
+  result.forEach((row) => {
+    if (row.packs !== null && row.packs.length > 0) {
+      const pack_arr = row.packs.split(',');
+      pack_arr.forEach((p) => {
+        const index = packs.findIndex((pack) => pack.name === p);
+        if (index === -1) {
+          packs.push({ name: p, count: 1 });
+        } else {
+          packs[index].count++;
+        }
+      });
+    }
+  });
 
   res.json(packs);
 
@@ -146,6 +156,27 @@ router.get('/all', async (req, res) => {
   const qVar = _res[1];
 
   const result = await connection.awaitQuery(`SELECT * FROM beatmap ${q}`, qVar);
+
+  res.json(result);
+
+  await connection.end();
+});
+
+router.get('/allsets', async (req, res) => {
+  const connection = mysql.createConnection(connConfig);
+
+  connection.on('error', (err) => {
+    res.json({
+      message: 'Unable to connect to database',
+      error: err,
+    });
+  });
+
+  const _res = buildQuery(req);
+  const q = _res[0];
+  const qVar = _res[1];
+
+  const result = await connection.awaitQuery(`SELECT approved, max(total_length) as total_length, max(hit_length) as hit_length, beatmapset_id, artist, title, creator, creator_id, max(approved_date) as approved_date, tags, packs FROM beatmap ${q} GROUP BY beatmapset_id`, qVar);
 
   res.json(result);
 
