@@ -90,31 +90,25 @@ router.get('/packs', async (req, res) => {
   let result;
   if (req.query.sets_only !== undefined && req.query.sets_only === 'true') {
     result = await connection.awaitQuery(`
-    SELECT packs FROM beatmap ${q} GROUP BY beatmapset_id
+    SELECT packs, count(*) as count FROM (SELECT packs FROM beatmap ${q} AND LENGTH(packs)>0 GROUP BY beatmapset_id) s GROUP BY s.packs
   `, qVar);
   } else {
     result = await connection.awaitQuery(`
-      SELECT packs FROM beatmap ${q}
+      SELECT packs, count(*) as count FROM beatmap ${q} AND LENGTH(packs)>0 GROUP BY packs
     `, qVar);
   }
 
-
-  let packs = [];
-
+  let packs = {};
   result.forEach((row) => {
-    if (row.packs !== null && row.packs.length > 0) {
-      const pack_arr = row.packs.split(',');
-      pack_arr.forEach((p) => {
-        const index = packs.findIndex((pack) => pack.name === p);
-        if (index === -1) {
-          packs.push({ name: p, count: 1 });
-        } else {
-          packs[index].count++;
-        }
-      });
-    }
+    const pack_arr = row.packs.split(',');
+    pack_arr.forEach((p) => {
+      if (packs[p] === undefined) {
+        packs[p] = row.count;
+      } else {
+        packs[p] += row.count;
+      }
+    });
   });
-
   res.json(packs);
 
   await connection.end();
