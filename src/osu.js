@@ -1,6 +1,9 @@
 require('dotenv').config();
 const axios = require('axios').default;
 
+let stored_token = null;
+let refetch_token = null;
+
 async function Login(client_id, client_secret) {
   const data = {
     client_id,
@@ -19,12 +22,16 @@ async function Login(client_id, client_secret) {
 }
 
 async function AuthorizedApiCall(url, type = 'get', api_version = null) {
-  const login_token = await Login(process.env.OSU_CLIENT_ID, process.env.OSU_CLIENT_SECRET);
+  if(stored_token === null || refetch_token === null || refetch_token < Date.now()) {
+    stored_token = await Login(process.env.OSU_CLIENT_ID, process.env.OSU_CLIENT_SECRET);
+    refetch_token = Date.now() + 3600000;
+    console.log('new token');
+  }
 
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    Authorization: `Bearer ${login_token}`,
+    Authorization: `Bearer ${stored_token}`,
     // 'x-api-version': 20220704
   };
   if (api_version != null) {
