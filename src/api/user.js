@@ -5,11 +5,18 @@ const router = express.Router();
 
 router.get('/:id', async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
+  let user = null;
   try {
-    const user = await GetUser(req.params.id, 'osu', 'id');
-    res.json(user);
+    user = await GetUser(req.params.id, 'osu', 'id');
   } catch (err) {
-    res.json({ error: 'Unable to get user' });
+    try {
+      user = await GetUser(req.params.id, 'osu', 'username');
+    } catch (_err) {
+      res.json({ error: 'Unable to get user' });
+    }
+  }
+  if (user !== null) {
+    res.json(user);
   }
   // res.json(user);
 });
