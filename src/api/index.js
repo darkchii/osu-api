@@ -3,6 +3,7 @@ const axios = require('axios');
 
 const beatmaps = require('./beatmaps');
 const user = require('./user');
+const daily = require('./daily');
 
 const router = express.Router();
 
@@ -15,6 +16,7 @@ router.get('/proxy/:url', async (req, res) => {
 
 router.use('/beatmaps', beatmaps);
 router.use('/users', user);
+router.use('/daily', daily);
 
 
 module.exports = router;

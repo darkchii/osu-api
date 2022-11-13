@@ -22,7 +22,7 @@ async function Login(client_id, client_secret) {
 }
 
 async function AuthorizedApiCall(url, type = 'get', api_version = null) {
-  if(stored_token === null || refetch_token === null || refetch_token < Date.now()) {
+  if (stored_token === null || refetch_token === null || refetch_token < Date.now()) {
     stored_token = await Login(process.env.OSU_CLIENT_ID, process.env.OSU_CLIENT_SECRET);
     refetch_token = Date.now() + 3600000;
     console.log('new token');
@@ -60,6 +60,17 @@ module.exports.GetUser = GetUser;
 async function GetUser(username, mode = 'osu', key = 'username') {
   const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/users/${username}/${mode}?key=${key}`);
   try {
+    return res.data;
+  } catch (err) {
+    console.log(err);
+    return null;
+  }
+}
+
+module.exports.GetDailyUser = GetDailyUser;
+async function GetDailyUser(user_id, mode = 0, key = 'id') {
+  const res = await axios.get(`https://osudaily.net/api/user.php?k=${process.env.OSUDAILY_API}&u=${user_id}&m=${mode}&min=0`);
+  try{
     return res.data;
   } catch (err) {
     console.log(err);
