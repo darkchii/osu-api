@@ -1,6 +1,7 @@
 const express = require('express');
 const moment = require('moment');
 const mysql = require('mysql-await');
+const apicache = require('apicache');
 
 const router = express.Router();
 
@@ -135,7 +136,8 @@ router.get('/count', async (req, res) => {
   await connection.end();
 });
 
-router.get('/stats', async (req, res) => {
+let cache = apicache.middleware;
+router.get('/stats', cache('1 hour'), async (req, res) => {
   const connection = mysql.createConnection(connConfig);
 
   connection.on('error', (err) => {
