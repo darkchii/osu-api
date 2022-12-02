@@ -135,6 +135,55 @@ router.get('/count', async (req, res) => {
   await connection.end();
 });
 
+router.get('/stats', async (req, res) => {
+  const connection = mysql.createConnection(connConfig);
+
+  connection.on('error', (err) => {
+    res.json({
+      message: 'Unable to connect to database',
+      error: err,
+    });
+  });
+
+  const _res = buildQuery(req);
+  const q = _res[0];
+  const qVar = _res[1];
+
+  const misc = await connection.awaitQuery(`SELECT 
+    count(*) as amount,
+    count(case when approved = 1 or approved = 2 then 1 end) as ranked,
+    count(case when approved = 4 then 1 end) as loved
+    FROM beatmap ${q}`, qVar);
+
+  const minmax_length = await connection.awaitQuery('SELECT "Length" as name, 0 as rounding, min(total_length) as min, avg(total_length) as avg, max(total_length) as max FROM beatmap WHERE approved=1 OR approved=2');
+  const minmax_stars = await connection.awaitQuery('SELECT "Starrating" as name, 2 as rounding, min(star_rating) as min, avg(star_rating) as avg, max(star_rating) as max FROM beatmap WHERE approved=1 OR approved=2');
+  const minmax_combo = await connection.awaitQuery('SELECT "Combo" as name, 0 as rounding, min(max_combo) as min, avg(max_combo) as avg, max(max_combo) as max FROM beatmap WHERE approved=1 OR approved=2');
+  const minmax_hit_objects = await connection.awaitQuery('SELECT "Hit Objects" as name, 0 as rounding, min(hit_objects) as min, avg(hit_objects) as avg, max(hit_objects) as max FROM beatmap WHERE approved=1 OR approved=2');
+  const minmax_bpm = await connection.awaitQuery('SELECT "BPM" as name, min(bpm) as min, 0 as rounding, avg(bpm) as avg, max(bpm) as max FROM beatmap WHERE approved=1 OR approved=2');
+
+  const most_played_beatmaps = await connection.awaitQuery(`SELECT * FROM beatmap ${q} ORDER BY plays DESC LIMIT 10`, qVar);
+  const newest_maps = await connection.awaitQuery(`SELECT * FROM beatmap ${q} ORDER BY approved_date DESC LIMIT 10`, qVar);
+  const longest_rank_time = await connection.awaitQuery(`SELECT * FROM beatmap ${q} ORDER BY (approved_date-submitted_date) DESC LIMIT 10`, qVar);
+
+  const data = {
+    misc: misc[0],
+    minmax: {
+      length: minmax_length[0],
+      stars: minmax_stars[0],
+      combo: minmax_combo[0],
+      hit_objects: minmax_hit_objects[0],
+      bpm: minmax_bpm[0]
+    },
+    most_played_beatmaps,
+    newest_maps,
+    longest_rank_time
+  };
+
+  res.json(data);
+
+  await connection.end();
+});
+
 router.get('/all', async (req, res) => {
   const connection = mysql.createConnection(connConfig);
 
