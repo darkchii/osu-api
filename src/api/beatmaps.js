@@ -4,6 +4,7 @@ const mysql = require('mysql-await');
 const apicache = require('apicache');
 
 const router = express.Router();
+let cache = apicache.middleware;
 
 const connConfig = {
   host: process.env.MYSQL_HOST,
@@ -136,7 +137,6 @@ router.get('/count', async (req, res) => {
   await connection.end();
 });
 
-let cache = apicache.middleware;
 router.get('/stats', cache('1 hour'), async (req, res) => {
   const connection = mysql.createConnection(connConfig);
 
@@ -153,19 +153,19 @@ router.get('/stats', cache('1 hour'), async (req, res) => {
 
   const misc = await connection.awaitQuery(`SELECT 
     count(*) as amount,
-    count(case when approved = 1 or approved = 2 then 1 end) as ranked,
-    count(case when approved = 4 then 1 end) as loved
+    count(case when (approved = 1 or approved = 2) and mode = 0 then 1 end) as ranked,
+    count(case when approved = 4 and mode = 0 then 1 end) as loved
     FROM beatmap ${q}`, qVar);
 
-  const minmax_length = await connection.awaitQuery('SELECT "Length" as name, 0 as rounding, min(total_length) as min, avg(total_length) as avg, max(total_length) as max FROM beatmap WHERE approved=1 OR approved=2');
-  const minmax_stars = await connection.awaitQuery('SELECT "Starrating" as name, 2 as rounding, min(star_rating) as min, avg(star_rating) as avg, max(star_rating) as max FROM beatmap WHERE approved=1 OR approved=2');
-  const minmax_combo = await connection.awaitQuery('SELECT "Combo" as name, 0 as rounding, min(max_combo) as min, avg(max_combo) as avg, max(max_combo) as max FROM beatmap WHERE approved=1 OR approved=2');
-  const minmax_hit_objects = await connection.awaitQuery('SELECT "Hit Objects" as name, 0 as rounding, min(hit_objects) as min, avg(hit_objects) as avg, max(hit_objects) as max FROM beatmap WHERE approved=1 OR approved=2');
-  const minmax_bpm = await connection.awaitQuery('SELECT "BPM" as name, min(bpm) as min, 0 as rounding, avg(bpm) as avg, max(bpm) as max FROM beatmap WHERE approved=1 OR approved=2');
+  const minmax_length = await connection.awaitQuery('SELECT "Length" as name, 0 as rounding, min(total_length) as min, avg(total_length) as avg, max(total_length) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
+  const minmax_stars = await connection.awaitQuery('SELECT "Starrating" as name, 2 as rounding, min(star_rating) as min, avg(star_rating) as avg, max(star_rating) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
+  const minmax_combo = await connection.awaitQuery('SELECT "Combo" as name, 0 as rounding, min(max_combo) as min, avg(max_combo) as avg, max(max_combo) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
+  const minmax_hit_objects = await connection.awaitQuery('SELECT "Hit Objects" as name, 0 as rounding, min(hit_objects) as min, avg(hit_objects) as avg, max(hit_objects) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
+  const minmax_bpm = await connection.awaitQuery('SELECT "BPM" as name, min(bpm) as min, 0 as rounding, avg(bpm) as avg, max(bpm) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
 
-  const most_played_beatmaps = await connection.awaitQuery('SELECT *, sum(plays) as plays, count(beatmapset_id) as diffcount FROM beatmap WHERE approved=1 OR approved=2 GROUP BY beatmapset_id ORDER BY plays DESC LIMIT 10');
-  const newest_maps = await connection.awaitQuery('SELECT *, count(beatmapset_id) as diffcount FROM beatmap WHERE approved=1 OR approved=2 GROUP BY beatmapset_id ORDER BY approved_date DESC LIMIT 10');
-  const longest_rank_time = await connection.awaitQuery('SELECT *, count(beatmapset_id) as diffcount FROM beatmap WHERE approved=1 OR approved=2 GROUP BY beatmapset_id ORDER BY (approved_date-submitted_date) DESC LIMIT 10');
+  const most_played_beatmaps = await connection.awaitQuery('SELECT *, sum(plays) as plays, count(beatmapset_id) as diffcount FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY beatmapset_id ORDER BY plays DESC LIMIT 10');
+  const newest_maps = await connection.awaitQuery('SELECT *, count(beatmapset_id) as diffcount FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY beatmapset_id ORDER BY approved_date DESC LIMIT 10');
+  const longest_rank_time = await connection.awaitQuery('SELECT *, count(beatmapset_id) as diffcount FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY beatmapset_id ORDER BY (approved_date-submitted_date) DESC LIMIT 10');
 
   const data = {
     misc: misc[0],
